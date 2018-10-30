@@ -1,47 +1,38 @@
 :- initialization(main).
 :- set_prolog_flag('double_quotes','chars').
+:- use_module(library(prolog_stack)).
+:- use_module(library(error)).
+:- use_module(library(pio)).
+:- use_module(library(chr)).
+
+user:prolog_exception_hook(Exception, Exception, Frame, _):-
+    (   Exception = error(Term)
+    ;   Exception = error(Term, _)),
+    get_prolog_backtrace(Frame, 20, Trace),
+    format(user_error, 'Error: ~p', [Term]), nl(user_error),
+    print_prolog_backtrace(user_error, Trace), nl(user_error), fail.
 
 main :-
-	adaptive_parse([
-		"\"understand A as B\" means \"A means B\"",
-		"understand \"(A)\" as \"A\"",
-		"understand \"A is taller than B\" as \"(height of A) > (height of B)\"",
-		"understand \"A is shorter than B\" as \"B is taller than A\"",
-		"understand four as 4",
-		"understand \"A squared\" as \"(A^2)\"",
-		"\"A therefore B\" means \"(A implies B)\"",
-		"understand \"A raised to the power of B\" as \"(A^B)\"",
-		"understand \"interpret A as B\" as \"understand A as B\"",
-		"understand \"more tall\" as \"taller\"",
-		"understand \"do A while B\" as \"(B) while (A)\"",
-		"understand \"while A do B\" as \"do A while B\"",
-		"understand \"while(A){B}\" as \"while (A) do (B)\"",
-		"understand \"if(A){B}\" as \"(A implies B)\"",
-		"\"A is a synonym of B\" means \"A means B\"",
-		"\"though\" means \"although\"",
-		"\"although\" means \"and\"",
-		"\"but\" means \"and\"",
-		"\"even though\" means and",
-		"\"every A in B where C\" means \"select A from B where C\"",
-		"\"select A in B where C\" means \"select A from B where C\"",
-		"\"each\" means \"every\"",
-		"\"A mod B\" means \"(A % B)\"",
-		"\"A is divisible by B\" means \"((A mod B)=0)\"",
-		"\"A is an even number\" means \"(A is divisible by 2)\"",
-		"\"A is not B by C\" means \"((A is B by C) = false)\"",
-		"\"A is not an B\" means \"((A is an B) = false)\"",
-		"\"A is not a B\" means \"((A is a B) = false)\"",
-		"\"A is an odd number\" means \"(A is not divisible by 2)\"",
-		"\"A is a positive number\" means \"(A>0)\"",
-		"\"A is a negative number\" means \"(A<0)\"",
-		"\"A and therefore B\" means \"A therefore B\""
-	]),
-	recursive_rewrite("(A is more than 3) and therefore B is a negative number if z does not equal 3",[Output]),
+	phrase_from_file(lines(Ls), 'input_file.txt'),
+	!,
+	writeln('\n'),
+	Input='C is not less than D percent of E and R implies that Q is not true',
+	writeln(Input),
+	writeln('\nmeans\n'),
+	atom_chars(Input,Input1),
+	recursive_rewrite(Input1,[Output]),
 	has_type(Output,_),
 	writeln(Output),
-	recursive_rewrite_([A,means,B],Z),writeln(Z),
-	list_of_vars(['A',is,greater,than,'B'],The_list),writeln(The_list).
-	
+	writeln('\n').
+
+lines([])           --> call(eos), !.
+lines([Line|Lines]) --> line(Line),{recursive_rewrite(Line),!}, lines(Lines).
+
+eos([], []).
+
+line([])     --> ( {char_code('.',Dot)},[Dot];call(eos) ), !.
+line([L1|Ls]) --> [L],{char_code(L1,L)},line(Ls).
+
 tokenize(A,B) :- phrase(tokenize(B),A).
 
 adaptive_parse([A]) :- recursive_rewrite(A).
@@ -50,42 +41,72 @@ adaptive_parse([A|B]) :- adaptive_parse([A]),adaptive_parse(B).
 recursive_rewrite(A) :- recursive_rewrite(A,_).
 recursive_rewrite(A,B) :-
 	tokenize(A,A1),recursive_rewrite_(A1,B).
+recursive_rewrite_([],[]).
 recursive_rewrite_(Input,Output) :-
 	ground(Input),
-	rewrite2(Input,Output1),recursive_rewrite_(Output1,Output);
-	Input = Output,rewrite_rule(_,Output).
+	recursive_rewrite_all([Input],_,Output),
+	writeln(['input to output',Input,Output]).
 
-rewrite2(Input,Output) :-
+recursive_rewrite_all(Inputs,Outputs,Output) :-
+	rewrite_all(Inputs,Inputs1),!,length(Inputs1,Len),writeln(['length of inputs',Len]),recursive_rewrite_all(Inputs1,Outputs,Output);
+	Inputs=Outputs,member(Output,Outputs),rewrite_rule(_,Output).
+	
+rewrite_all(Inputs,Outputs) :-
+	setof(Output,rewrite2(Inputs,Output), Outputs).
+
+rewrite2(Inputs,Output) :-
+	member(Input,Inputs),
 	rewrite_rule(Input1,Output1),
 	replace(Input1,Output1,Input,Output),
-	rewrite_rule(Input1,Output1).
+	rewrite_rule(Input1,Output1),(is_string(Output1);bool(Output1);is_number(Output1)).
 
-is_string(A,A) :- has_type(A,string).
-is_string(A,B) :- nonvar(A),rewrite_rule(A,B),is_string(B).
+is_string(A,A) :- \+(starts_with_lower(A)),has_type(A,string).
+is_string(A,B) :- \+(starts_with_lower(A);starts_with_lower(B)),nonvar(A),rewrite_rule(A,B),is_string(B).
 bool(A,A) :- has_type(A,bool).
 bool(A,B) :- nonvar(A),rewrite_rule(A,B),bool(B).
 imperative(A,B) :- bool(A,B).
 number(A,A) :- has_type(A,number).
 number(A,B) :- nonvar(A),rewrite_rule(A,B),number(B).
 
-rewrite_rule1(A1,B1) :- tokenize(A1,A2),tokenize(B1,B2),list_of_vars(A2,List_of_vars),replace_with_var(A2,A3,List_of_vars),replace_with_var(B2,B3,List_of_vars),writeln([A3,B3]),assertz(rewrite_rule(A3,B3)).
+atom_to_literal(Atom,Literal) :-
+	atom_chars(Atom,Atom_),
+	string_to_literal(Atom_,Literal__),
+	atom_chars(Literal,Literal__).
+literal_to_atom(Literal,Atom) :-
+	atom_chars(Literal,Literal__),
+	string_to_literal(Atom_,Literal__),
+	atom_chars(Atom,Atom_).
+string_to_literal(Atom_,Literal__) :-
+	append(['"'],Atom_,Literal_),
+	append(Literal_,['"'],Literal__).
+	
+rewrite_if_possible(A,B) :-
+	recursive_rewrite_(A,B),writeln(['rewrite if possible',A,B]);A=B.
+
+rewrite_rule1(A1_,B1_) :- string_to_literal(A1,A1_),string_to_literal(B1,B1_),tokenize(A1,A2),tokenize(B1,B2),list_of_vars(A2,List_of_vars),replace_with_var(A2,A3,List_of_vars),replace_with_var(B2,B3,List_of_vars),rewrite_if_possible(B3,B4),assertz(rewrite_rule(A3,B4)).
 replace_with_var([A],[A1],List_of_vars) :- member([A,A1],List_of_vars);A=A1.
 replace_with_var([A|B],[A1|B1],List_of_vars) :- replace_with_var([A],[A1],List_of_vars),replace_with_var(B,B1,List_of_vars).
 list_of_vars([A],[[]]) :- \+starts_with_upper(A).
 list_of_vars([A],[[A,_]]) :- starts_with_upper(A).
 list_of_vars([Word|Words],[Vars|Vars1]) :- list_of_vars([Word],[Vars]),list_of_vars(Words,Vars1).
 
-starts_with_upper(Atom) :- atom_chars(Atom,[List1|_]),char_type(List1,upper).
+starts_with_upper(Atom) :- atom(Atom),atom_chars(Atom,[List1|_]),char_type(List1,upper).
+starts_with_lower(Atom) :- atom(Atom),atom_chars(Atom,[List1|_]),char_type(List1,lower).
 
-%rewrite_rule(A,B) :- rewrite_rule1(A,B),writeln([A,B]).
-rewrite_rule(['[',A,',',B,']'],[list([A,B])]).
-rewrite_rule(['[',A,',',B,','],['[',comma(A,B),',']).
-rewrite_rule(['[',A,']'],[list([A])]).
+%rewrite_rule(A,B) :- rewrite_rule1(A,B).
+
+rewrite_rule([[comma([A,B])|C]],[D]) :- BC = [B|C],D=[A|BC].
+rewrite_rule([('false'->A)],[false]) :- bool(A,_).
+rewrite_rule(['true'->A],[A1]) :- bool(A,A1).
+rewrite_rule(['[',A,',',B,']'],[[A,B]]) :- dif(B,comma(_)).
+rewrite_rule(['[',A,',',B,','],['[',comma([A,B]),',']) :- dif(B,comma(_)).
+rewrite_rule(['[',A,']'],[[A]]) :- dif(A,comma(_)).
 rewrite_rule([select,A,from,B,where,C],[list_comprehension(A,B,C1)]) :- bool(C,C1).
+rewrite_rule([determinant,of,A],[det(A1)]) :- is_string(A,A1).
 rewrite_rule([A,is,a,member,of,B],[B,is,in,A]).
 rewrite_rule([A,is,an,element,of,B],[A,is,a,member,of,B]).
 rewrite_rule([!,=],[\=]).
-rewrite_rule([A,\=,B],[A\=B]).
+rewrite_rule([A,\=,B],[A\=B]) :- has_type(A,C),has_type(B,C).
 rewrite_rule(bool,A,B) :- bool(A,B).
 rewrite_rule(number,A,B) :- number(A,B).
 rewrite_rule(string,A,B) :- is_string(A,B).
@@ -97,7 +118,7 @@ rewrite_rule([A,+,B],[A1+B1]) :- number(A,A1),number(B,B1).
 rewrite_rule([A,-,B],[A1-B1]) :- number(A,A1),number(B,B1).
 rewrite_rule([A,*,B],[A1*B1]) :- number(A,A1),number(B,B1).
 rewrite_rule([A,'%',B],[mod(A1,B1)]) :- number(A,A1),number(B,B1).
-rewrite_rule([A,'^',B],[A^B]).
+rewrite_rule([A,'^',B],[A1^B1]) :- number(A,A1),number(B,B1).
 rewrite_rule([A,'=',B],[A=B]) :- has_type(A,C),has_type(B,C).
 rewrite_rule([A,<,B],[A1<B1]) :- number(A,A1),number(B,B1).
 rewrite_rule([A,>,B],[A1>B1]) :- number(A,A1),number(B,B1).
@@ -134,7 +155,6 @@ rewrite_rule([derivative,of,A,with,respect,to,B],[derivative(A1,B1)]) :- number(
 rewrite_rule([distance,between,A,and,B],[distance(A1,B1)]) :- number(A,A1),number(B,B1).
 rewrite_rule([distance,from,A,to,B],[distance,between,A,and,B]).
 rewrite_rule([integral,of,A,with,respect,to,B],[integral(A1,B1)]) :- number(A,A1),number(B,B1).
-rewrite_rule([greater],[more]).
 rewrite_rule([A,plus,B],[A1+B1]) :- number(A,A1),number(B,B1).
 rewrite_rule([A,times,B],[A1*B1]) :- number(A,A1),number(B,B1).
 rewrite_rule([A,minus,B],[A1-B1]) :- number(A,A1),number(B,B1).
@@ -147,7 +167,7 @@ rewrite_rule([A,is,not,B,than,C],['(','(',A,is,B,than,C,')',is,false,')']).
 rewrite_rule([A,is,B,than,C,or,D,than,E],['(',A1,is,B,than,C1,')',or,'(',A1,is,D,than,E1,')']).
 rewrite_rule([A,is,B,than,C,and,D,than,E],['(',A1,is,B,than,C1,')',and,'(',A1,is,D,than,E1,')']).
 rewrite_rule([do,A,unless,B],[A1,unless,B1]) :- bool(A,A1),bool(B,B1).
-rewrite_rule([A,unless,B],[if,B1,is,false,then,A1]) :- bool(A,A1),bool(B,B1).
+rewrite_rule([A,unless,B],[(B1=false)->A1]) :- bool(A,A1),bool(B,B1).
 rewrite_rule([sum,of,A,and,B],[A1+B1]) :- number(A,A1),number(B,B1).
 rewrite_rule([A,is,implied,by,B],[B1,implies,A1]) :- bool(A,A1),bool(B,B1).
 rewrite_rule([substring,of,A,to,B,from,C],[substring,of,A,from,C,to,B]) :- is_string(A,A1),number(B,B1),number(C,C1).
@@ -172,9 +192,14 @@ rewrite_rule([sum,of,A,and,B],[A1+B1]) :- number(A,A1),number(B,B1).
 rewrite_rule([A,until,B],[while(B1=false,A1)]) :- bool(A,A1),bool(B,B1).
 rewrite_rule([do,A,until,B],[A1,until,B1]) :- bool(A,A1),bool(B,B1).
 rewrite_rule([until,A,do,B],[do,A,until,B1]) :- bool(A,A1),bool(B,B1).
-rewrite_rule([A,means,B],[means(A1,B1)]) :- bool(A,A1),bool(B,B1).
+rewrite_rule([A,means,B],[means(A1,B1)]) :- is_string(A,A1),is_string(B,B1).
+rewrite_rule([A,is,a,permutation,of,B],[permutation(A,B)]) :- is_string(A,A1),is_string(B,B1).
 rewrite_rule([print,A],[print(A1)]) :- rewrite_rule_(A,A1).
 rewrite_rule_(A,A1) :- rewrite_rule(_,A,A1).
+rewrite_rule([save,the,string,A,to,the,file,B],[save_file(A,B)]) :- is_string(A,A1),is_string(B,B1).
+rewrite_rule([append,the,string,A,to,the,file,B],[append_to_file(A,B)]) :- is_string(A,A1),is_string(B,B1).
+rewrite_rule([append,the,list,A,to,B],[append(A,B)]) :- is_string(A,A1),is_string(B,B1).
+rewrite_rule([run,shell,command,A],[shell(A1)]) :- is_string(A,A1).
 
 has_type(A,imperative) :- has_type(A,bool).
 has_type(A,number) :- var(A);ground(A),is_number(A).
@@ -184,7 +209,7 @@ has_type(A,string) :- var(A);ground(A),is_string(A).
 bool(forall(_,_)).
 bool(print(A)).
 bool(while(A,B)).
-bool(means(A,B)) :- ground(A),ground(B),writeln(means(A,B)),atom_chars(A,A1),atom_chars(B,B1),rewrite_rule1(A1,B1).
+bool(means(A,B)) :- atom_chars(A,A1),atom_chars(B,B1),rewrite_rule1(A1,B1).
 bool(A->B) :- bool(A),bool(B).
 bool((A;B)) :- bool(A),bool(B).
 bool((A,B)) :- bool(A),bool(B).
@@ -198,25 +223,37 @@ bool(A=<B) :- is_number(A),is_number(B).
 bool(integer(A)).
 bool(number(A)).
 bool(member(_,_)).
-bool(A) :- atom(A),dif(A,'('),dif(A,')'),dif(A,'not'),dif(A,'than'),dif(A,'more').
-is_string(A) :- atom(A),dif(A,'('),dif(A,')'),dif(A,'not'),dif(A,'than'),dif(A,'more').
+bool(true).
+bool(false).
+bool(permutation(A,B)).
+bool(A) :- starts_with_upper(A),dif(A,'('),dif(A,')'),dif(A,'not'),dif(A,'than'),dif(A,'more').
+bool(save_file(A,B)) :-
+	open(B,write,Stream),
+    write(Stream,A),
+    nl(Stream), 
+    close(Stream).
+bool(append_to_file(A,B)) :- open(B, append, Handle), write(Handle, A), close(Handle).
+bool(shell(A)) :- writeln(shell(A)),shell(A).
+is_string(A) :- var(A);starts_with_upper(A);atom(A),(\+(starts_with_lower(A))),literal_to_atom(A,_).
 is_string(substring(_,_,_)).
 is_string(is_substring(_,_)).
-is_string(list(_)).
+is_string(A) :- (\+starts_with_lower(A)),A \= [comma(_),_].
+is_string(A) :- is_list(A).
+is_string(det(A)) :- is_string(A).
 is_string(list_comprehension(A,B,C)).
-is_number(A) :- atom(A),dif(A,'('),dif(A,')'),dif(A,'not'),dif(A,'than'),dif(A,'more'),dif(A,'squared'),dif(A,'derivative').
+is_number(A) :- starts_with_upper(A).
 is_number(A) :- number(A).
-is_number(A+B).
+is_number(A+B) :- is_number(A),is_number(B).
 is_number(sqrt(_)).
-is_number(height(A)).
+is_number(height(_)).
 is_number(factorial(_)).
-is_number(mod(A,B)).
-is_number(A*B).
-is_number(A/B).
-is_number(A-B).
-is_number(A^B).
-is_number(derivative(A,B)).
-is_number(integral(A,B)).
+is_number(mod(_,_)).
+is_number(_*_).
+is_number(_/_).
+is_number(_-_).
+is_number(_^_).
+is_number(derivative(_,_)).
+is_number(integral(_,_)).
 is_number(ln(_)).
 is_number(sin(_)).
 is_number(cos(_)).
@@ -226,7 +263,7 @@ is_number(acos(_)).
 is_number(atan(_)).
 is_number(distance(_,_)).
 is_number(gcd(_,_)).
-is_number(abs(A)).
+is_number(abs(_)).
 is_number(floor(_)).
 is_number(ceiling(_)).
 is_number(cross_product(_,_)).
@@ -250,8 +287,9 @@ words_or_numbers([A|B]) --> words_or_numbers__([A]),ws_,words_or_numbers(B).
 tokens([A]) --> {token(A)},[A].
 tokens([A|B]) --> {token(A)},[A],ws,words_or_numbers(B).
 tokens([A|B]) --> {token(A)},[A],ws,tokens(B).
-tokenize(A) --> words_or_numbers(A).
-tokenize(A) --> tokens(A).
+tokenize(A) --> ws,words_or_numbers(A),ws.
+tokenize(A) --> ws,tokens(A),ws.
+tokenize([]) --> ws.
 token(A) --> [A],{token(A)}.
 token('>').
 token('<').
@@ -271,11 +309,12 @@ token('+').
 token('-').
 token(',').
 token('%').
+token('.').
 
-string_literal("") --> "\"\"".
-string_literal(S) --> "\"",string_inner(S),"\"".
+string_literal("\"\"") --> "\"\"".
+string_literal(S1) --> "\"",string_inner(S),"\"",{string_to_literal(S,S1)}.
 string_literal1("") --> "\'\'".
-string_literal1(S) --> "\'",string_inner1(S),"\'","\'\''",{S=""}.
+string_literal1(S) --> "\'",string_inner1(S),"\'","\'\''".
 string_inner([A]) --> string_inner_(A).
 string_inner([A|B]) --> string_inner_(A),string_inner(B).
 string_inner_(A) --> {A="\\\""},A;{dif(A,'"'),dif(A,'\n')},[A].

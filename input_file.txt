@@ -1,0 +1,55 @@
+"(A)" means "A".
+"greater" means "more".
+"understand A as B" means "A means B".
+understand "A is taller than B" as "(height of A) > (height of B)".
+understand "A is shorter than B" as "B is taller than A".
+understand "four" as "4".
+understand "A squared" as "(A^2)".
+"A therefore B" means "(A implies B)".
+understand "A raised to the power of B" as "(A^B)".
+"A to the power of B" means "(A^B)".
+"interpret A as B" means "A means B".
+interpret "more tall" as "taller".
+understand "do A while B" as "(B) while (A)".
+understand "while A do B" as "do A while B".
+understand "while(A){B}" as "while (A) do (B)".
+understand "if(A){B}" as "(A implies B)".
+"A is a synonym of B" means "A means B".
+"though" means "although".
+"although" means "and".
+"but" means "and".
+"even though" means "and".
+"every A in B where C" means "select A from B where C".
+"select A in B where C" means "select A from B where C".
+"each" means "every".
+"A mod B" means "(A % B)".
+"A is divisible by B" means "((A mod B)=0)".
+"A is an even number" means "(A is divisible by 2)".
+"A is not B by C" means "((A is B by C) = false)".
+"A is not an B" means "((A is an B) = false)".
+"A is not a B" means "((A is a B) = false)".
+"A is an odd number" means "(A is not divisible by 2)".
+"A is a positive number" means "(A>0)".
+"A is a negative number" means "(A<0)".
+"A and therefore B" means "(A therefore B)".
+"A is B" means "(A equals B)".
+"so" means "therefore".
+",therefore" means "therefore".
+"A is greater than or equal to B" means "((A>B) or (A=B))".
+"yet" means "and".
+"sin(A)" means "sine of A".
+"cos(A)" means "cosine of A".
+"tan(A)" means "tangent of A".
+"log(A)" means "natural logarithm of A".
+"ln(A)" means "log(A)".
+"pow(A,B)" means "(A to the power of B)".
+"append (A,B)" means "(append the list A to B)".
+"append A to B" means "append(A,B)".
+"D is a factor of R" means "(R is divisible by D)".
+"A cubed" means "(A to the power of 3)".
+"cube root of A" means "(A^(1/3))".
+"B% of C" means "(B/100)*C".
+"B percent of C" means "B% of C".
+"A is more than B" means "A>B".
+"A is not B than C" means "((A is B than C) = false)".
+"A implies that B" means "A implies B".
