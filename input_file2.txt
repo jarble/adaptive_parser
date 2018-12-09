@@ -1,0 +1,9 @@
+"A squared" means "A^2".
+"A does not equal B" means "A is not equal to B".
+"A is not B" means "A does not equal B".
+"A plus B" means "A+B".
+"sum of A and B" means "A plus B".
+"A is not more than B" means "A<B or (A=B)".
+"either A or B" means "A or B".
+"neither A nor B" means "(A = false) and (B = false)".
+"A is B" means "A=B".

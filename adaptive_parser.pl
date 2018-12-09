@@ -16,7 +16,7 @@ main :-
 	phrase_from_file(lines(Ls), 'input_file.txt'),
 	!,
 	writeln('\n'),
-	Input='C is not less than D percent of E and R implies that Q is not true',
+	Input='C is not less than 10 percent of E and R implies that Q is not true and Z is the sum of G and R',
 	writeln(Input),
 	writeln('\nmeans\n'),
 	atom_chars(Input,Input1),
@@ -26,7 +26,7 @@ main :-
 	writeln('\n').
 
 lines([])           --> call(eos), !.
-lines([Line|Lines]) --> line(Line),{recursive_rewrite(Line),!}, lines(Lines).
+lines([Line|Lines]) --> line(Line),{writeln(Line),recursive_rewrite(Line),!}, lines(Lines).
 
 eos([], []).
 
@@ -48,7 +48,7 @@ recursive_rewrite_(Input,Output) :-
 	writeln(['input to output',Input,Output]).
 
 recursive_rewrite_all(Inputs,Outputs,Output) :-
-	rewrite_all(Inputs,Inputs1),!,length(Inputs1,Len),writeln(['length of inputs',Len]),recursive_rewrite_all(Inputs1,Outputs,Output);
+	rewrite_all(Inputs,Inputs1),!,length(Inputs1,Len),writeln(Inputs1),writeln(['length of inputs',Len]),recursive_rewrite_all(Inputs1,Outputs,Output);
 	Inputs=Outputs,member(Output,Outputs),rewrite_rule(_,Output).
 	
 rewrite_all(Inputs,Outputs) :-

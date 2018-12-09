@@ -53,3 +53,4 @@ understand "if(A){B}" as "(A implies B)".
 "A is more than B" means "A>B".
 "A is not B than C" means "((A is B than C) = false)".
 "A implies that B" means "A implies B".
+"A is not the same as B" means "(A does not equal B)"
