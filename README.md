@@ -1,5 +1,5 @@
 # adaptive_parser
-This is a very simple [semantic parser](https://en.wikipedia.org/wiki/Semantic_parsing) in Prolog, implemented using an [adaptive grammar](https://en.wikipedia.org/wiki/Adaptive_grammar) in Prolog. In other words, this parser is able to "learn" new grammar rules from its input.
+This is a very simple [semantic parser](https://en.wikipedia.org/wiki/Semantic_parsing) in Prolog, implemented using an [adaptive grammar](https://en.wikipedia.org/wiki/Adaptive_grammar). In other words, this parser is able to "learn" new grammar rules from its input.
 
 The grammar rules for this parser are defined in [input_file.txt](input_file.txt).
 
